@@ -2107,16 +2107,27 @@ public class OsmandAidlApi {
 		NextDirectionInfo baseNdi = new NextDirectionInfo();
 		IRoutingDataUpdateListener listener = () -> {
 			if (aidlCallbackListener != null) {
-				ADirectionInfo directionInfo = new ADirectionInfo(-1, -1, false);
+				ADirectionInfo directionInfo = new ADirectionInfo(-1, -1, false,"","", -1,-1,"", 0, -1, -1, -1);
 				RoutingHelper rh = app.getRoutingHelper();
 				if (rh.isDeviatedFromRoute()) {
 					directionInfo.setTurnType(TurnType.OFFR);
 					directionInfo.setDistanceTo((int) rh.getRouteDeviation());
 				} else {
 					NextDirectionInfo ndi = rh.getNextRouteDirectionInfo(baseNdi, true);
+					NextDirectionInfo andi = rh.getNextRouteDirectionInfoAfter(ndi, new NextDirectionInfo(), true);
 					if (ndi != null && ndi.distanceTo > 0 && ndi.directionInfo != null) {
 						directionInfo.setDistanceTo(ndi.distanceTo);
 						directionInfo.setTurnType(ndi.directionInfo.getTurnType().getValue());
+						directionInfo.setName(ndi.directionInfo.getStreetName());
+						directionInfo.setAfterNextTurnName(andi.directionInfo.getStreetName());
+						directionInfo.setAfterNextTurnType(andi.directionInfo.getTurnType().getValue());
+						directionInfo.setAfterNextTurnDistance(andi.distanceTo);
+						directionInfo.setDestinationName(ndi.directionInfo.getDestinationName());
+						directionInfo.setAverageSpeed(ndi.directionInfo.getAverageSpeed());
+						directionInfo.setLeftDistance(rh.getLeftDistance());
+						int leftTime = rh.getLeftTime();
+						directionInfo.setLeftTime(leftTime);
+						directionInfo.setArrivalTime(leftTime + System.currentTimeMillis()/1000);
 					}
 				}
 				for (OsmandAidlService.AidlCallbackParams cb : aidlCallbackListener.getAidlCallbacks().values()) {
@@ -2130,16 +2141,27 @@ public class OsmandAidlApi {
 				}
 			}
 			if (aidlCallbackListenerV2 != null) {
-				net.osmand.aidlapi.navigation.ADirectionInfo directionInfo = new net.osmand.aidlapi.navigation.ADirectionInfo(-1, -1, false);
+				net.osmand.aidlapi.navigation.ADirectionInfo directionInfo = new net.osmand.aidlapi.navigation.ADirectionInfo(-1, -1, false,"","", -1,-1,"", 0, -1, -1, -1);
 				RoutingHelper rh = app.getRoutingHelper();
 				if (rh.isDeviatedFromRoute()) {
 					directionInfo.setTurnType(TurnType.OFFR);
 					directionInfo.setDistanceTo((int) rh.getRouteDeviation());
 				} else {
 					NextDirectionInfo ndi = rh.getNextRouteDirectionInfo(baseNdi, true);
+					NextDirectionInfo andi = rh.getNextRouteDirectionInfoAfter(ndi, new NextDirectionInfo(), true);
 					if (ndi != null && ndi.distanceTo > 0 && ndi.directionInfo != null) {
 						directionInfo.setDistanceTo(ndi.distanceTo);
 						directionInfo.setTurnType(ndi.directionInfo.getTurnType().getValue());
+						directionInfo.setName(ndi.directionInfo.getStreetName());
+						directionInfo.setAfterNextTurnName(andi.directionInfo.getStreetName());
+						directionInfo.setAfterNextTurnType(andi.directionInfo.getTurnType().getValue());
+						directionInfo.setAfterNextTurnDistance(andi.distanceTo);
+						directionInfo.setDestinationName(andi.directionInfo.getDestinationName());
+						directionInfo.setAverageSpeed(ndi.directionInfo.getAverageSpeed());
+						directionInfo.setLeftDistance(rh.getLeftDistance());
+						int leftTime = rh.getLeftTime();
+						directionInfo.setLeftTime(leftTime);
+						directionInfo.setArrivalTime(System.currentTimeMillis()/1000 + leftTime);
 					}
 				}
 				for (OsmandAidlServiceV2.AidlCallbackParams cb : aidlCallbackListenerV2.getAidlCallbacks().values()) {
