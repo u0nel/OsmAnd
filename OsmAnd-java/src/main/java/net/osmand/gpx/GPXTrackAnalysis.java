@@ -14,6 +14,7 @@ import net.osmand.router.RouteColorize.ColorizationType;
 import org.apache.commons.logging.Log;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -324,10 +325,15 @@ public class GPXTrackAnalysis {
 				}
 			}
 
-			ElevationDiffsCalculator elevationDiffsCalc = new ElevationDiffsCalculator() {
+			ElevationApproximator approximator = new ElevationApproximator() {
 				@Override
-				public double getPointDistance(int index) {
-					return s.get(index).distance;
+				public double getPointLatitude(int index) {
+					return s.get(index).lat;
+				}
+
+				@Override
+				public double getPointLongitude(int index) {
+					return s.get(index).lon;
 				}
 
 				@Override
@@ -340,9 +346,30 @@ public class GPXTrackAnalysis {
 					return s.getNumberOfPoints();
 				}
 			};
-			elevationDiffsCalc.calculateElevationDiffs();
-			diffElevationUp += elevationDiffsCalc.getDiffElevationUp();
-			diffElevationDown += elevationDiffsCalc.getDiffElevationDown();
+			approximator.approximate();
+			final double[] distances = approximator.getDistances();
+			final double[] elevations = approximator.getElevations();
+			if (distances != null && elevations != null) {
+				ElevationDiffsCalculator elevationDiffsCalc = new ElevationDiffsCalculator() {
+					@Override
+					public double getPointDistance(int index) {
+						return distances[index];
+					}
+
+					@Override
+					public double getPointElevation(int index) {
+						return elevations[index];
+					}
+
+					@Override
+					public int getPointsCount() {
+						return distances.length;
+					}
+				};
+				elevationDiffsCalc.calculateElevationDiffs();
+				diffElevationUp += elevationDiffsCalc.getDiffElevationUp();
+				diffElevationDown += elevationDiffsCalc.getDiffElevationDown();
+			}
 		}
 
 		if (totalDistance < 0) {
