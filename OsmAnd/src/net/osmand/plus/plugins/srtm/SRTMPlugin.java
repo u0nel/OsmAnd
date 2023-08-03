@@ -33,6 +33,7 @@ import net.osmand.plus.download.IndexItem;
 import net.osmand.plus.inapp.InAppPurchaseHelper;
 import net.osmand.plus.plugins.OsmandPlugin;
 import net.osmand.plus.plugins.PluginsHelper;
+import net.osmand.plus.plugins.development.OsmandDevelopmentPlugin;
 import net.osmand.plus.plugins.openseamaps.NauticalMapsPlugin;
 import net.osmand.plus.quickaction.QuickActionType;
 import net.osmand.plus.settings.backend.ApplicationMode;
@@ -194,7 +195,7 @@ public class SRTMPlugin extends OsmandPlugin {
 	public CharSequence getDescription(boolean linksEnabled) {
 		String docsUrl = app.getString(R.string.docs_plugin_srtm);
 		String description = app.getString(R.string.srtm_plugin_description, docsUrl);
-		return linksEnabled ? UiUtilities.createUrlSpannable(description, docsUrl): description;
+		return linksEnabled ? UiUtilities.createUrlSpannable(description, docsUrl) : description;
 	}
 
 	@Override
@@ -387,17 +388,19 @@ public class SRTMPlugin extends OsmandPlugin {
 	protected void registerConfigureMapCategoryActions(@NonNull ContextMenuAdapter adapter,
 	                                                   @NonNull MapActivity mapActivity,
 	                                                   @NonNull List<RenderingRuleProperty> customRules) {
-		if (isEnabled() && app.useOpenGlRenderer()) {
+		if (isEnabled()) {
 			adapter.addItem(new ContextMenuItem(TERRAIN_CATEGORY_ID)
 					.setCategory(true)
-					.setTitle(app.getString(R.string.shared_string_terrain))
+					.setTitle(app.getString(R.string.srtm_plugin_name))
 					.setLayout(R.layout.list_group_title_with_switch));
 
 			if (isLocked()) {
 				addTerrainDescriptionItem(adapter, mapActivity);
 			} else {
 				createContextMenuItems(adapter, mapActivity);
-				add3DReliefItem(adapter, mapActivity);
+				if (app.useOpenGlRenderer()) {
+					add3DReliefItem(adapter, mapActivity);
+				}
 			}
 			NauticalMapsPlugin nauticalPlugin = PluginsHelper.getPlugin(NauticalMapsPlugin.class);
 			if (nauticalPlugin != null) {
@@ -408,27 +411,20 @@ public class SRTMPlugin extends OsmandPlugin {
 
 	private void addTerrainDescriptionItem(@NonNull ContextMenuAdapter adapter,
 	                                       @NonNull MapActivity activity) {
-		adapter.addItem(new ContextMenuItem(TERRAIN_DESCRIPTION_ID)
-				.setLayout(R.layout.list_item_terrain_description)
-				.setTitleId(TERRAIN_DESCRIPTION_ID.hashCode(), null)
-				.setClickable(false)
-				.setListener((uiAdapter, view, item, isChecked) -> {
-					ChoosePlanFragment.showInstance(activity, OsmAndFeature.TERRAIN);
-					return true;
-				}));
-	}
-
-	@Override
-	protected void registerLayerContextMenuActions(@NonNull ContextMenuAdapter adapter, @NonNull MapActivity mapActivity, @NonNull List<RenderingRuleProperty> customRules) {
-		if (isEnabled() && !app.useOpenGlRenderer()) {
-			if (isLocked()) {
-				PurchasingUtils.createPromoItem(adapter, mapActivity, OsmAndFeature.TERRAIN,
-						TERRAIN_ID,
-						R.string.shared_string_terrain,
-						R.string.contour_lines_hillshades_slope);
-			} else {
-				createContextMenuItems(adapter, mapActivity);
-			}
+		if (app.useOpenGlRenderer()) {
+			adapter.addItem(new ContextMenuItem(TERRAIN_DESCRIPTION_ID)
+					.setLayout(R.layout.list_item_terrain_description)
+					.setTitleId(TERRAIN_DESCRIPTION_ID.hashCode(), null)
+					.setClickable(false)
+					.setListener((uiAdapter, view, item, isChecked) -> {
+						ChoosePlanFragment.showInstance(activity, OsmAndFeature.TERRAIN);
+						return true;
+					}));
+		} else {
+			PurchasingUtils.createPromoItem(adapter, activity, OsmAndFeature.TERRAIN,
+					TERRAIN_ID,
+					R.string.srtm_plugin_name,
+					R.string.contour_lines_hillshade_slope);
 		}
 	}
 
@@ -439,7 +435,7 @@ public class SRTMPlugin extends OsmandPlugin {
 			public boolean onRowItemClick(@NonNull @NotNull OnDataChangeUiAdapter uiAdapter, @NonNull @NotNull View view, @NonNull @NotNull ContextMenuItem item) {
 				int[] viewCoordinates = AndroidUtils.getCenterViewCoordinates(view);
 				int itemId = item.getTitleId();
-				if (itemId == R.string.srtm_plugin_name) {
+				if (itemId == R.string.download_srtm_maps) {
 					mapActivity.getDashboard().setDashboardVisibility(true, DashboardOnMap.DashboardType.CONTOUR_LINES, viewCoordinates);
 					return false;
 				} else if (itemId == R.string.shared_string_terrain) {
@@ -452,7 +448,7 @@ public class SRTMPlugin extends OsmandPlugin {
 			@Override
 			public boolean onContextMenuClick(@Nullable OnDataChangeUiAdapter uiAdapter, @Nullable View view, @NotNull ContextMenuItem item, boolean isChecked) {
 				int itemId = item.getTitleId();
-				if (itemId == R.string.srtm_plugin_name) {
+				if (itemId == R.string.download_srtm_maps) {
 					toggleContourLines(mapActivity, isChecked, () -> {
 						RenderingRuleProperty contourLinesProp = app.getRendererRegistry().getCustomRenderingRuleProperty(CONTOUR_LINES_ATTR);
 						if (contourLinesProp != null) {
@@ -494,7 +490,7 @@ public class SRTMPlugin extends OsmandPlugin {
 			boolean contourLinesSelected = isContourLinesLayerEnabled(app);
 			String descr = getPrefDescription(app, contourLinesProp, pref);
 			adapter.addItem(new ContextMenuItem(CONTOUR_LINES)
-					.setTitleId(R.string.srtm_plugin_name, mapActivity)
+					.setTitleId(R.string.download_srtm_maps, mapActivity)
 					.setSelected(contourLinesSelected)
 					.setIcon(R.drawable.ic_plugin_srtm)
 					.setDescription(app.getString(R.string.display_zoom_level, descr))
@@ -570,8 +566,14 @@ public class SRTMPlugin extends OsmandPlugin {
 		if (!downloadThread.shouldDownloadIndexes()) {
 			LatLon latLon = app.getMapViewTrackingUtilities().getMapLocation();
 			suggestedMaps.addAll(getMapsForType(latLon, DownloadActivityType.SRTM_COUNTRY_FILE));
-			suggestedMaps.addAll(getMapsForType(latLon, DownloadActivityType.HILLSHADE_FILE));
-			suggestedMaps.addAll(getMapsForType(latLon, DownloadActivityType.SLOPE_FILE));
+
+			OsmandDevelopmentPlugin plugin = PluginsHelper.getPlugin(OsmandDevelopmentPlugin.class);
+			if (!app.useOpenGlRenderer() || plugin != null && plugin.USE_RASTER_SQLITEDB.get()) {
+				suggestedMaps.addAll(getMapsForType(latLon, DownloadActivityType.HILLSHADE_FILE));
+				suggestedMaps.addAll(getMapsForType(latLon, DownloadActivityType.SLOPE_FILE));
+			} else {
+				suggestedMaps.addAll(getMapsForType(latLon, GEOTIFF_FILE));
+			}
 		}
 
 		return suggestedMaps;
